@@ -15,7 +15,6 @@ def init_db():
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
 
-  # Tabla para almacenar las preguntas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS preguntas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +24,6 @@ def init_db():
         )
     """)
 
-  # Tabla para almacenar las respuestas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS respuestas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +36,6 @@ def init_db():
 
   conn.commit()
 
-  # Cargar preguntas de la encuesta si la base de datos está vacía
   cursor.execute("SELECT COUNT(*) FROM preguntas")
   if cursor.fetchone()[0] == 0:
     preguntas_demo = [
@@ -142,7 +139,6 @@ def init_db():
 
 
 def obtener_preguntas():
-  """Recupera la lista de preguntas registradas."""
   conn = sqlite3.connect(DB_NAME)
   df = pd.read_sql_query("SELECT * FROM preguntas", conn)
   conn.close()
@@ -150,7 +146,6 @@ def obtener_preguntas():
 
 
 def guardar_respuestas(respuestas_dict):
-  """Inserta las respuestas enviadas por el usuario en la base de datos."""
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   for preg_id, resp in respuestas_dict.items():
@@ -163,20 +158,7 @@ def guardar_respuestas(respuestas_dict):
   conn.close()
 
 
-def agregar_pregunta(titulo, tipo, opciones_lista):
-  """Permite al administrador guardar una nueva pregunta."""
-  conn = sqlite3.connect(DB_NAME)
-  cursor = conn.cursor()
-  cursor.execute(
-      "INSERT INTO preguntas (titulo, tipo, opciones) VALUES (?, ?, ?)",
-      (titulo, tipo, json.dumps(opciones_lista)),
-  )
-  conn.commit()
-  conn.close()
-
-
 def obtener_respuestas_df():
-  """Recupera un DataFrame con todas las respuestas recopiladas en la base de datos."""
   conn = sqlite3.connect(DB_NAME)
   query = """
         SELECT r.id AS respuesta_id, p.titulo AS pregunta, p.tipo, r.respuesta, r.fecha
@@ -188,7 +170,6 @@ def obtener_respuestas_df():
   return df
 
 
-# Inicializar la Base de Datos al arrancar la aplicación
 init_db()
 
 # ==========================================
@@ -207,7 +188,6 @@ opcion = st.sidebar.radio(
         "📝 Responder Cuestionario",
         "📊 Dashboard de Estadísticas",
         "🗄️ Ver Base de Datos",
-        "⚙️ Crear Pregunta",
     ],
 )
 
@@ -393,40 +373,3 @@ elif opcion == "🗄️ Ver Base de Datos":
         file_name="base_de_datos_respuestas.csv",
         mime="text/csv",
     )
-
-# ------------------------------------------
-# VISTA 4: CREAR NUEVAS PREGUNTAS
-# ------------------------------------------
-elif opcion == "⚙️ Crear Pregunta":
-  st.title("⚙️ Panel de Administración de Preguntas")
-
-  with st.form("form_nueva_pregunta"):
-    nuevo_titulo = st.text_input("Enunciado o Título de la pregunta:")
-    tipo_pregunta = st.selectbox(
-        "Tipo de Pregunta:", ["Opciones", "Escala (1-5)", "Texto"]
-    )
-
-    opciones_input = ""
-    if tipo_pregunta == "Opciones":
-      opciones_input = st.text_area(
-          "Opciones (separadas por comas):",
-          help="Ejemplo: Opción A, Opción B, Opción C, Opción D",
-      )
-
-    btn_guardar = st.form_submit_button("➕ Guardar Pregunta")
-
-    if btn_guardar:
-      if not nuevo_titulo.strip():
-        st.error("Debes ingresar un título para la pregunta.")
-      else:
-        lista_opciones = []
-        if tipo_pregunta == "Opciones" and opciones_input:
-          lista_opciones = [
-              item.strip() for item in opciones_input.split(",") if item.strip()
-          ]
-
-        agregar_pregunta(nuevo_titulo, tipo_pregunta, lista_opciones)
-        st.success(
-            f"Pregunta **'{nuevo_titulo}'** agregada correctamente al sistema."
-        )
-    
