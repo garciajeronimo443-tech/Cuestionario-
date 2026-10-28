@@ -15,6 +15,7 @@ def init_db():
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
 
+  # Tabla para almacenar las preguntas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS preguntas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +25,7 @@ def init_db():
         )
     """)
 
+  # Tabla para almacenar las respuestas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS respuestas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,6 +38,7 @@ def init_db():
 
   conn.commit()
 
+  # Cargar preguntas de la encuesta si la base de datos está vacía
   cursor.execute("SELECT COUNT(*) FROM preguntas")
   if cursor.fetchone()[0] == 0:
     preguntas_demo = [
@@ -139,6 +142,7 @@ def init_db():
 
 
 def obtener_preguntas():
+  """Recupera la lista de preguntas registradas."""
   conn = sqlite3.connect(DB_NAME)
   df = pd.read_sql_query("SELECT * FROM preguntas", conn)
   conn.close()
@@ -146,6 +150,7 @@ def obtener_preguntas():
 
 
 def guardar_respuestas(respuestas_dict):
+  """Inserta las respuestas enviadas por el usuario en la base de datos."""
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   for preg_id, resp in respuestas_dict.items():
@@ -159,6 +164,7 @@ def guardar_respuestas(respuestas_dict):
 
 
 def agregar_pregunta(titulo, tipo, opciones_lista):
+  """Permite al administrador guardar una nueva pregunta."""
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   cursor.execute(
@@ -170,6 +176,7 @@ def agregar_pregunta(titulo, tipo, opciones_lista):
 
 
 def obtener_respuestas_df():
+  """Recupera un DataFrame con todas las respuestas recopiladas en la base de datos."""
   conn = sqlite3.connect(DB_NAME)
   query = """
         SELECT r.id AS respuesta_id, p.titulo AS pregunta, p.tipo, r.respuesta, r.fecha
@@ -181,6 +188,7 @@ def obtener_respuestas_df():
   return df
 
 
+# Inicializar la Base de Datos al arrancar la aplicación
 init_db()
 
 # ==========================================
@@ -421,3 +429,4 @@ elif opcion == "⚙️ Crear Pregunta":
         st.success(
             f"Pregunta **'{nuevo_titulo}'** agregada correctamente al sistema."
         )
+    
