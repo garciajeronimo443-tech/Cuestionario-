@@ -15,7 +15,6 @@ def init_db():
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
 
-  # Tabla para almacenar las preguntas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS preguntas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +24,6 @@ def init_db():
         )
     """)
 
-  # Tabla para almacenar las respuestas
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS respuestas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +36,6 @@ def init_db():
 
   conn.commit()
 
-  # Cargar preguntas de la encuesta sobre la carrera si la BD está vacía
   cursor.execute("SELECT COUNT(*) FROM preguntas")
   if cursor.fetchone()[0] == 0:
     preguntas_demo = [
@@ -142,7 +139,6 @@ def init_db():
 
 
 def obtener_preguntas():
-  """Recupera la lista de preguntas registradas."""
   conn = sqlite3.connect(DB_NAME)
   df = pd.read_sql_query("SELECT * FROM preguntas", conn)
   conn.close()
@@ -150,7 +146,6 @@ def obtener_preguntas():
 
 
 def guardar_respuestas(respuestas_dict):
-  """Inserta las respuestas enviadas por el usuario."""
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   for preg_id, resp in respuestas_dict.items():
@@ -164,7 +159,6 @@ def guardar_respuestas(respuestas_dict):
 
 
 def agregar_pregunta(titulo, tipo, opciones_lista):
-  """Permite al administrador guardar una nueva pregunta."""
   conn = sqlite3.connect(DB_NAME)
   cursor = conn.cursor()
   cursor.execute(
@@ -176,10 +170,9 @@ def agregar_pregunta(titulo, tipo, opciones_lista):
 
 
 def obtener_respuestas_df():
-  """Recupera un DataFrame con todas las respuestas y el detalle de cada pregunta."""
   conn = sqlite3.connect(DB_NAME)
   query = """
-        SELECT r.id, r.pregunta_id, p.titulo, p.tipo, r.respuesta, r.fecha
+        SELECT r.id AS respuesta_id, p.titulo AS pregunta, p.tipo, r.respuesta, r.fecha
         FROM respuestas r
         JOIN preguntas p ON r.pregunta_id = p.id
     """
@@ -188,7 +181,6 @@ def obtener_respuestas_df():
   return df
 
 
-# Inicializar la Base de Datos al arrancar la aplicación
 init_db()
 
 # ==========================================
@@ -203,7 +195,12 @@ st.set_page_config(
 st.sidebar.title("📌 Menú Principal")
 opcion = st.sidebar.radio(
     "Navegación:",
-    ["📝 Responder Cuestionario", "📊 Dashboard de Estadísticas", "⚙️ Crear Pregunta"],
+    [
+        "📝 Responder Cuestionario",
+        "📊 Dashboard de Estadísticas",
+        "🗄️ Ver Base de Datos",
+        "⚙️ Crear Pregunta",
+    ],
 )
 
 # ------------------------------------------
@@ -252,7 +249,10 @@ if opcion == "📝 Responder Cuestionario":
 
       if enviado:
         guardar_respuestas(respuestas_usuario)
-        st.success("¡Tus respuestas han sido guardadas exitosamente!")
+        st.success(
+            "¡Tus respuestas han sido guardadas en la base de datos"
+            " exitosamente!"
+        )
 
 # ------------------------------------------
 # VISTA 2: DASHBOARD DE ESTADÍSTICAS
@@ -265,7 +265,20 @@ elif opcion == "📊 Dashboard de Estadísticas":
   if df_respuestas.empty:
     st.warning("Aún no hay respuestas registradas en la base de datos.")
   else:
-    st.metric("Total de Preguntas Respondidas", len(df_respuestas))
+    col_met, col_btn = st.columns([1, 1])
+
+    with col_met:
+      st.metric("Total de Registros Guardados", len(df_respuestas))
+
+    with col_btn:
+      csv_data = df_respuestas.to_csv(index=False, encoding="utf-8-sig")
+      st.download_button(
+          label="📥 Descargar Base de Datos (CSV / Excel)",
+          data=csv_data,
+          file_name="respuestas_cuestionario.csv",
+          mime="text/csv",
+      )
+
     st.markdown("---")
 
     df_preguntas = obtener_preguntas()
@@ -275,7 +288,7 @@ elif opcion == "📊 Dashboard de Estadísticas":
       titulo = preg["titulo"]
       tipo = preg["tipo"]
 
-      resp_p = df_respuestas[df_respuestas["pregunta_id"] == p_id]
+      resp_p = df_respuestas[df_respuestas["pregunta"] == titulo]
 
       st.markdown(f"### {titulo}")
 
@@ -349,7 +362,32 @@ elif opcion == "📊 Dashboard de Estadísticas":
       st.markdown("---")
 
 # ------------------------------------------
-# VISTA 3: CREAR NUEVAS PREGUNTAS
+# VISTA 3: VER BASE DE DATOS COMPLETA
+# ------------------------------------------
+elif opcion == "🗄️ Ver Base de Datos":
+  st.title("🗄️ Registros de la Base de Datos")
+
+  df_respuestas = obtener_respuestas_df()
+
+  if df_respuestas.empty:
+    st.info("La base de datos está vacía por el momento.")
+  else:
+    st.write(
+        "A continuación se muestran todas las respuestas registradas en la"
+        " tabla `respuestas` de SQLite:"
+    )
+    st.dataframe(df_respuestas, use_container_width=True)
+
+    csv_data = df_respuestas.to_csv(index=False, encoding="utf-8-sig")
+    st.download_button(
+        label="📥 Descargar Reporte Completo (CSV / Excel)",
+        data=csv_data,
+        file_name="base_de_datos_respuestas.csv",
+        mime="text/csv",
+    )
+
+# ------------------------------------------
+# VISTA 4: CREAR NUEVAS PREGUNTAS
 # ------------------------------------------
 elif opcion == "⚙️ Crear Pregunta":
   st.title("⚙️ Panel de Administración de Preguntas")
